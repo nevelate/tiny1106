@@ -109,8 +109,8 @@ void Oled::drawLine(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1)
 
 void Oled::drawLineV(uint8_t x, uint8_t y0, uint8_t y1)
 {
-    uint8_t start = y1 > y0 ? y0 : y1;
-    uint8_t end = y1 > y0 ? y1 : y0;
+    uint8_t start = min(y0, y1);
+    uint8_t end = max(y0, y1);
 
     for (uint8_t i = (start >> 3); i <= (end >> 3); i++)
     {
@@ -160,7 +160,10 @@ void Oled::drawLineV(uint8_t x, uint8_t y0, uint8_t y1)
 
 void Oled::drawLineH(uint8_t y, uint8_t x0, uint8_t x1)
 {
-    uint8_t x = x0;
+    uint8_t start = min(x0, x1);    
+    uint8_t end = max(x0, x1);
+
+    uint8_t x = start;
     Wire.beginTransmission(_address);
     sendOneCommand(OLED_PAGE + (y >> 3));
     Wire.endTransmission();
@@ -187,7 +190,7 @@ void Oled::drawLineH(uint8_t y, uint8_t x0, uint8_t x1)
             sendOneCommand(OLED_END);
             Wire.endTransmission();
 
-            if (x == x1)
+            if (x == end)
                 return;
             x++;
         }

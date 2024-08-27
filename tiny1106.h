@@ -58,7 +58,7 @@ public:
     void setTextScale(uint8_t scale);
 
 private:
-    uint8_t _address;
+    int _address;
     void sendOneCommand(int8_t command);
 };
 
