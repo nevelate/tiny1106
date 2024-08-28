@@ -260,6 +260,19 @@ void Oled::drawLineH(uint8_t y, uint8_t x0, uint8_t x1)
     }
 }
 
+void Oled::print(uint8_t x, uint8_t y, char text[])
+{
+}
+
+void Oled::printChar(uint8_t x, uint8_t y, char character)
+{
+}
+
+void Oled::setTextScale(uint8_t scale)
+{
+    _textScale = scale;
+}
+
 void Oled::sendOneCommand(int8_t command)
 {
     Wire.write(OLED_ONE_COMMAND_MODE);

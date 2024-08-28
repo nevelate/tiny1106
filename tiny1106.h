@@ -59,6 +59,7 @@ public:
 
 private:
     int _address;
+    uint8_t _textScale;
     void sendOneCommand(int8_t command);
 };
 
