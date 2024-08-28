@@ -48,6 +48,69 @@ void Oled::clear()
 
 void Oled::clear(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1)
 {
+    uint8_t startX = min(x0, x1);
+    uint8_t endX = max(x0, x1);
+
+    uint8_t startY = min(y0, y1);
+    uint8_t endY = max(y0, y1);
+
+    for (uint8_t i = (startY >> 3); i <= (endY >> 3); i++)
+    {
+        uint8_t x = startX;
+        Wire.beginTransmission(_address);
+        Wire.write(OLED_COMMAND_MODE);
+
+        Wire.write(OLED_PAGE + i);
+
+        for (uint8_t j = 0; j < 8; j++)
+        {
+            Wire.beginTransmission(_address);
+            Wire.write(OLED_COLUMN_LOWER_BITS + ((x + OLED_OFFSET) & 0x0F)); // may not work
+            Wire.write(OLED_COLUMN_HIGHER_BITS + ((x + OLED_OFFSET) >> 4));
+            Wire.endTransmission();
+
+            for (uint8_t k = 0; k < 17; k++)
+            {
+                if (i == (startY >> 3))
+                {
+                    Wire.requestFrom(_address, 2);
+                    Wire.read();
+                    int8_t data = Wire.read();
+                    Wire.beginTransmission(_address);
+                    Wire.write(OLED_ONE_DATA_MODE);
+                    Wire.write(~(0xFF >> (x & 0x07)) | data);
+
+                    sendOneCommand(OLED_END);
+
+                    Wire.endTransmission();
+                }
+                else if (i == (endY >> 3))
+                {
+                    Wire.requestFrom(_address, 2);
+                    Wire.read();
+                    int8_t data = Wire.read();
+                    Wire.beginTransmission(_address);
+                    Wire.write(OLED_ONE_DATA_MODE);
+                    Wire.write((0xFF >> (x & 0x07)) | data);
+
+                    sendOneCommand(OLED_END);
+
+                    Wire.endTransmission();
+                }
+                else
+                {
+                    Wire.beginTransmission(_address);
+                    Wire.write(OLED_ONE_DATA_MODE);
+                    Wire.write(0);
+                    Wire.endTransmission();
+                }
+
+                if (x == endX)
+                    break;
+                x++;
+            }
+        }
+    }
 }
 
 void Oled::drawPoint(uint8_t x, uint8_t y)
@@ -160,7 +223,7 @@ void Oled::drawLineV(uint8_t x, uint8_t y0, uint8_t y1)
 
 void Oled::drawLineH(uint8_t y, uint8_t x0, uint8_t x1)
 {
-    uint8_t start = min(x0, x1);    
+    uint8_t start = min(x0, x1);
     uint8_t end = max(x0, x1);
 
     uint8_t x = start;
