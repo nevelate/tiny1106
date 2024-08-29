@@ -13,9 +13,9 @@ void loop() {
   delay(2000);
   oled.drawLine(10, 10, 40, 40);
   delay(2000);
-  oled.drawLineH(32, 60, 70);
+  oled.drawLineH(32, 10, 110);
   delay(2000);
-  oled.drawLineV(64, 20, 30);
+  oled.drawLineV(64, 20, 50);
   delay(2000);
   oled.clear();
   oled.print(20, 20, "Hello, World!");
