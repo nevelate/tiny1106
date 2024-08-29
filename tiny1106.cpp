@@ -8,7 +8,6 @@ Oled::Oled(uint8_t address)
     _address = address;
 }
 
-// Initialize display
 void Oled::init()
 {
     Wire.begin();
@@ -18,7 +17,6 @@ void Oled::init()
     Wire.endTransmission();
 }
 
-// Set display contrast (0-255)
 void Oled::setContrast(uint8_t contrast)
 {
     Wire.beginTransmission(_address);
@@ -73,12 +71,12 @@ void Oled::clear(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1)
             {
                 if (i == (startY >> 3))
                 {
-                    Wire.requestFrom(_address, 2);
+                    Wire.requestFrom(_address, 1);
                     Wire.read();
                     int data = Wire.read();
                     Wire.beginTransmission(_address);
                     Wire.write(OLED_ONE_DATA_MODE);
-                    Wire.write(~(0xFF >> (x & 0x07)) | data);
+                    Wire.write((0xFF >> (x & 0x07)) | data);
 
                     sendOneCommand(OLED_END);
 
@@ -86,12 +84,12 @@ void Oled::clear(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1)
                 }
                 else if (i == (endY >> 3))
                 {
-                    Wire.requestFrom(_address, 2);
+                    Wire.requestFrom(_address, 1);
                     Wire.read();
                     int data = Wire.read();
                     Wire.beginTransmission(_address);
                     Wire.write(OLED_ONE_DATA_MODE);
-                    Wire.write((0xFF >> (x & 0x07)) | data);
+                    Wire.write(~(0xFF >> (x & 0x07)) | data);
 
                     sendOneCommand(OLED_END);
 
@@ -125,7 +123,7 @@ void Oled::drawPoint(uint8_t x, uint8_t y)
     Wire.write(OLED_ONE_DATA_MODE);
     Wire.endTransmission();
 
-    Wire.requestFrom(_address, 2);
+    Wire.requestFrom(_address, 1);
     Wire.read();
     int data = Wire.read();
     Wire.beginTransmission(_address);
@@ -187,12 +185,12 @@ void Oled::drawLineV(uint8_t x, uint8_t y0, uint8_t y1)
 
         if (i == (start >> 3))
         {
-            Wire.requestFrom(_address, 2);
+            Wire.requestFrom(_address, 1);
             Wire.read();
             int data = Wire.read();
             Wire.beginTransmission(_address);
             Wire.write(OLED_ONE_DATA_MODE);
-            Wire.write(~(0xFF >> (start & 0x07)) | data);
+            Wire.write((0xFF >> (start & 0x07)) | data);
 
             sendOneCommand(OLED_END);
 
@@ -200,12 +198,12 @@ void Oled::drawLineV(uint8_t x, uint8_t y0, uint8_t y1)
         }
         else if (i == (end >> 3))
         {
-            Wire.requestFrom(_address, 2);
+            Wire.requestFrom(_address, 1);
             Wire.read();
             int data = Wire.read();
             Wire.beginTransmission(_address);
             Wire.write(OLED_ONE_DATA_MODE);
-            Wire.write((0xFF >> (end & 0x07)) | data);
+            Wire.write(~(0xFF >> (end & 0x07)) | data);
 
             sendOneCommand(OLED_END);
 
@@ -241,7 +239,7 @@ void Oled::drawLineH(uint8_t y, uint8_t x0, uint8_t x1)
         Wire.endTransmission();
         for (uint8_t j = 0; j < 17; j++)
         {
-            Wire.requestFrom(_address, 2);
+            Wire.requestFrom(_address, 1);
             Wire.read();
             int data = Wire.read();
             Wire.beginTransmission(_address);
