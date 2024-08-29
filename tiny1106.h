@@ -7,10 +7,10 @@
 #include <Arduino.h>
 #include <Wire.h>
 
-#include <charMap.h>
+#include "charMap.h"
 
 #ifdef OLED_RU
-#include <charMapRU.h>
+#include "charMapRU.h"
 #endif
 
 #ifndef OLED_OFFSET

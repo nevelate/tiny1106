@@ -123,7 +123,7 @@ void Oled::drawPoint(uint8_t x, uint8_t y)
     Wire.write(OLED_ONE_DATA_MODE);
     Wire.endTransmission();
 
-    Wire.requestFrom(_address, 1);
+    Wire.requestFrom(_address, 2);
     Wire.read();
     int data = Wire.read();
     Wire.beginTransmission(_address);
@@ -239,7 +239,7 @@ void Oled::drawLineH(uint8_t y, uint8_t x0, uint8_t x1)
         Wire.endTransmission();
         for (uint8_t j = 0; j < 17; j++)
         {
-            Wire.requestFrom(_address, 1);
+            Wire.requestFrom(_address, 2);
             Wire.read();
             int data = Wire.read();
             Wire.beginTransmission(_address);
