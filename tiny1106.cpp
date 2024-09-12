@@ -251,19 +251,60 @@ void Oled::drawLineH(uint8_t y, uint8_t x0, uint8_t x1)
                 sendOneCommand(OLED_END);
                 Wire.endTransmission();
                 return;
-            }            
+            }
             Wire.endTransmission();
             x++;
         }
     }
 }
 
-void Oled::print(uint8_t x, uint8_t y, char text[])
+void Oled::print(char text[])
 {
 }
 
-void Oled::printChar(uint8_t x, uint8_t y, char character)
+void Oled::printChar(char character)
 {
+    uint8_t h = _y & 0x07;
+    uint8_t pageCount = (_y & 0x07) == 0 ? _textScale : _textScale + 1;
+
+    for (uint8_t p = 0; p < pageCount; p++)
+    {
+        Wire.beginTransmission(_address);
+        sendOneCommand(OLED_PAGE + (_y >> 3) + p);
+        sendOneCommand(OLED_COLUMN_LOWER_BITS + ((_x + OLED_OFFSET) & 0x0F));
+        sendOneCommand(OLED_COLUMN_HIGHER_BITS + ((_x + OLED_OFFSET) >> 4));
+        sendOneCommand(OLED_READ_MODIFY_WRITE);
+        Wire.write(OLED_ONE_DATA_MODE);
+        Wire.endTransmission();
+
+        for (uint8_t i = 0; i < 6; i++)
+        {
+            Wire.requestFrom(_address, 2);
+            Wire.read();
+            int data = Wire.read();
+            Wire.beginTransmission(_address);
+            Wire.write(OLED_ONE_DATA_MODE);
+
+            if (i == 5)
+            {
+                Wire.write(data);
+                sendOneCommand(OLED_END);
+                Wire.endTransmission();
+                continue;
+            }
+
+            uint8_t column = _charMap[character - 32][i];
+            Wire.write((column << h) >> (p << 3) | data);
+
+            Wire.endTransmission();
+        }
+    }
+}
+
+void Oled::setCursor(uint8_t x, uint8_t y)
+{
+    _x = x;
+    _y = y;
 }
 
 void Oled::setTextScale(uint8_t scale)

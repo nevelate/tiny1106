@@ -52,14 +52,15 @@ public:
     void drawLineV(uint8_t x, uint8_t y0, uint8_t y1);
     void drawLineH(uint8_t y, uint8_t x0, uint8_t x1);
 
-    void print(uint8_t x, uint8_t y, char text[]);
-    void printChar(uint8_t x, uint8_t y, char character);
+    void print(char text[]);
+    void printChar(char character);
 
+    void setCursor(uint8_t x, uint8_t y);
     void setTextScale(uint8_t scale);
 
 private:
     int _address;
-    uint8_t _textScale;
+    uint8_t _textScale, _x, _y;
     void sendOneCommand(int8_t command);
 };
 
