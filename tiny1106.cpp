@@ -259,14 +259,46 @@ void Oled::print(char text[])
     uint8_t length = strlen(text);
     uint8_t pageCount = (_y & 0x07) == 0 ? _textScale : _textScale + 1;
 
+    Wire.beginTransmission(_address);
+    sendOneCommand(OLED_COLUMN_LOWER_BITS + ((_x + OLED_OFFSET) & 0x0F));
+    sendOneCommand(OLED_COLUMN_HIGHER_BITS + ((_x + OLED_OFFSET) >> 4));
+    Wire.endTransmission();
+
     for (uint8_t p = 0; p < pageCount; p++)
     {
-        for (uint8_t i = 0; i <= length / 5; i++)
+        Wire.beginTransmission(_address);
+        sendOneCommand(OLED_PAGE + (_y >> 3) + p);
+        sendOneCommand(OLED_READ_MODIFY_WRITE);
+        Wire.write(OLED_ONE_DATA_MODE);
+        Wire.endTransmission();
+
+        for (uint8_t i = 0; i < length; i++)
         {
-            for (uint8_t c = 0; c < 5; c++)
+            for (uint8_t c = 0; c < 6; c++)
             {
+                Wire.requestFrom(_address, 2);
+                Wire.read();
+                int data = Wire.read();
+                Wire.beginTransmission(_address);
+                Wire.write(OLED_ONE_DATA_MODE);
+
+                if (c == 5)
+                {
+                    Wire.write(data);
+                    Wire.endTransmission();
+                    continue;
+                }
+
+                int column = pgm_read_byte(&_charMap[text[i] - 32][c]);
+                Wire.write((column << h) >> (p << 3) | data);
+
+                Wire.endTransmission();
             }
         }
+
+        Wire.beginTransmission(_address);
+        sendOneCommand(OLED_END);
+        Wire.endTransmission();
     }
 
     _x += length * 6;
