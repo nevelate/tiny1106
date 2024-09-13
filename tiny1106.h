@@ -56,6 +56,9 @@ public:
     void print(char text[]);
     void printChar(char character);
 
+    void printFast(char text[]);
+    void printCharFast(char character);
+
     void setCursor(uint8_t x, uint8_t y);
     void setTextScale(uint8_t scale);
 

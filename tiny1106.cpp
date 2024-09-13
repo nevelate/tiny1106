@@ -28,6 +28,8 @@ void Oled::setContrast(uint8_t contrast)
 
 void Oled::clear()
 {
+    setCursor(0, 0);
+
     for (uint8_t p = 0; p < 8; p++)
     {
         Wire.beginTransmission(_address);
@@ -47,6 +49,8 @@ void Oled::clear()
 
 void Oled::clear(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1)
 {
+    setCursor(0, 0);
+
     uint8_t startX = min(x0, x1);
     uint8_t endX = max(x0, x1);
 
@@ -257,7 +261,7 @@ void Oled::print(char text[])
 
     for (uint8_t p = 0; p < pageCount; p++)
     {
-        for (uint8_t i = 0; i < length / 5; i++)
+        for (uint8_t i = 0; i <= length / 5; i++)
         {
             for (uint8_t c = 0; c < 5; c++)
             {
@@ -305,6 +309,59 @@ void Oled::printChar(char character)
             Wire.endTransmission();
         }
     }
+
+    _x += 6;
+}
+
+void Oled::printFast(char text[])
+{
+    uint8_t length = strlen(text);
+    uint8_t count = 0;
+
+    Wire.beginTransmission(_address);
+    sendOneCommand(OLED_PAGE + (_y >> 3));
+    sendOneCommand(OLED_COLUMN_LOWER_BITS + ((_x + OLED_OFFSET) & 0x0F));
+    sendOneCommand(OLED_COLUMN_HIGHER_BITS + ((_x + OLED_OFFSET) >> 4));
+    Wire.endTransmission();
+
+    for (uint8_t i = 0; i <= length / 5; i++)
+    {
+        Wire.beginTransmission(_address);
+        Wire.write(OLED_DATA_MODE);
+        for (uint8_t c = 0; c < 5; c++)
+        {
+            for (uint8_t j = 0; j < 6; j++)
+            {
+                Wire.write((j == 5) ? 0x00 : pgm_read_byte(&_charMap[text[count] - 32][j]));
+            }
+
+            count++;
+            if (count == length)
+                break;
+        }
+        Wire.endTransmission();
+
+        if (count == length)
+            break;
+    }
+    Wire.beginTransmission(_address);
+    sendOneCommand(OLED_END);
+    Wire.endTransmission();
+
+    _x += 6 * length;
+}
+
+void Oled::printCharFast(char character)
+{
+    Wire.beginTransmission(_address);
+    sendOneCommand(OLED_PAGE + (_y >> 3));
+    sendOneCommand(OLED_COLUMN_LOWER_BITS + ((_x + OLED_OFFSET) & 0x0F));
+    sendOneCommand(OLED_COLUMN_HIGHER_BITS + ((_x + OLED_OFFSET) >> 4));
+
+    Wire.write(OLED_DATA_MODE);
+    for (uint8_t i = 0; i < 5; i++)
+        Wire.write(pgm_read_byte(&_charMap[character - 32][i]));
+    Wire.endTransmission();
 
     _x += 6;
 }
