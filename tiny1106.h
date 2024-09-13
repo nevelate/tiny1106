@@ -41,6 +41,7 @@ class Oled
 {
 public:
     Oled(uint8_t address = 0x3C);
+    
     void init();
     void setContrast(uint8_t contrast);
     void clear();
