@@ -180,16 +180,19 @@ void Oled::drawLineV(uint8_t x, uint8_t y0, uint8_t y1)
     for (uint8_t i = (start >> 3); i <= (end >> 3); i++)
     {
         Wire.beginTransmission(_address);
-        Wire.write(OLED_COMMAND_MODE);
-
-        Wire.write(OLED_PAGE + i);
-        Wire.write(OLED_COLUMN_LOWER_BITS + ((x + OLED_OFFSET) & 0x0F));
-        Wire.write(OLED_COLUMN_HIGHER_BITS + ((x + OLED_OFFSET) >> 4));
+        sendOneCommand(OLED_PAGE + i);
+        sendOneCommand(OLED_COLUMN_LOWER_BITS + ((x + OLED_OFFSET) & 0x0F));
+        sendOneCommand(OLED_COLUMN_HIGHER_BITS + ((x + OLED_OFFSET) >> 4));
         Wire.endTransmission();
 
         if (i == (start >> 3))
         {
-            Wire.requestFrom(_address, 1);
+            Wire.beginTransmission(_address);
+            sendOneCommand(OLED_READ_MODIFY_WRITE);
+            Wire.write(OLED_ONE_DATA_MODE);
+            Wire.endTransmission();
+
+            Wire.requestFrom(_address, 2);
             Wire.read();
             int data = Wire.read();
             Wire.beginTransmission(_address);
@@ -202,7 +205,12 @@ void Oled::drawLineV(uint8_t x, uint8_t y0, uint8_t y1)
         }
         else if (i == (end >> 3))
         {
-            Wire.requestFrom(_address, 1);
+            Wire.beginTransmission(_address);
+            sendOneCommand(OLED_READ_MODIFY_WRITE);
+            Wire.write(OLED_ONE_DATA_MODE);
+            Wire.endTransmission();
+
+            Wire.requestFrom(_address, 2);
             Wire.read();
             int data = Wire.read();
             Wire.beginTransmission(_address);
@@ -348,54 +356,94 @@ void Oled::printChar(char character)
 void Oled::printFast(char text[])
 {
     uint8_t length = strlen(text);
-    uint8_t count = 0;
+    uint8_t _count = 0;
 
-    Wire.beginTransmission(_address);
-    sendOneCommand(OLED_PAGE + (_y >> 3));
-    sendOneCommand(OLED_COLUMN_LOWER_BITS + ((_x + OLED_OFFSET) & 0x0F));
-    sendOneCommand(OLED_COLUMN_HIGHER_BITS + ((_x + OLED_OFFSET) >> 4));
-    Wire.endTransmission();
-
-    for (uint8_t i = 0; i <= length / 5; i++)
+    for (uint8_t p = 0; p < _textScale; p++)
     {
         Wire.beginTransmission(_address);
-        Wire.write(OLED_DATA_MODE);
-        for (uint8_t c = 0; c < 5; c++)
-        {
-            for (uint8_t j = 0; j < 6; j++)
-            {
-                Wire.write((j == 5) ? 0x00 : pgm_read_byte(&_charMap[text[count] - 32][j]));
-            }
-
-            count++;
-            if (count == length)
-                break;
-        }
+        sendOneCommand(OLED_PAGE + (_y >> 3) + p);
+        sendOneCommand(OLED_COLUMN_LOWER_BITS + ((_x + OLED_OFFSET) & 0x0F));
+        sendOneCommand(OLED_COLUMN_HIGHER_BITS + ((_x + OLED_OFFSET) >> 4));
         Wire.endTransmission();
 
-        if (count == length)
-            break;
-    }
-    Wire.beginTransmission(_address);
-    sendOneCommand(OLED_END);
-    Wire.endTransmission();
+        for (uint8_t i = 0; i <= length / (5 / _textScale); i++)
+        {
+            Wire.beginTransmission(_address);
+            Wire.write(OLED_DATA_MODE);
+            for (uint8_t c = 0; c < 5 / _textScale; c++)
+            {
+                for (uint8_t j = 0; j < 6 * _textScale; j++)
+                {
+                    if (_textScale == 1)
+                    {
+                        Wire.write((j == 5) ? 0x00 : pgm_read_byte(&_charMap[text[_count] - 32][j]));
+                    }
+                    else
+                    {
+                        uint8_t column = pgm_read_byte(&_charMap[text[_count] - 32][j]);
+                        uint32_t scaledColumn = 0;
 
-    _x += 6 * length;
+                        for (uint8_t k = 0, count = 0; k < 8; k++)
+                            for (uint8_t l = 0; l < _textScale; l++, count++)
+                                bitWrite(scaledColumn, count, bitRead(column, k));
+
+                        for (uint8_t s = 0; s < _textScale; s++)
+                        {
+                            Wire.write((j >= 5 * _textScale) ? 0x00 : (0xFF & (scaledColumn >> (_textScale - p - 1) * 8)));
+                        }
+                    }
+                }
+
+                _count++;
+                if (_count == length)
+                    break;
+            }
+            Wire.endTransmission();
+
+            if (_count == length)
+                break;
+        }
+        _count = 0;
+    }
+
+    _x += 6 * length * _textScale;
 }
 
 void Oled::printCharFast(char character)
 {
-    Wire.beginTransmission(_address);
-    sendOneCommand(OLED_PAGE + (_y >> 3));
-    sendOneCommand(OLED_COLUMN_LOWER_BITS + ((_x + OLED_OFFSET) & 0x0F));
-    sendOneCommand(OLED_COLUMN_HIGHER_BITS + ((_x + OLED_OFFSET) >> 4));
+    for (uint8_t p = 0; p < _textScale; p++)
+    {
+        Wire.beginTransmission(_address);
+        sendOneCommand(OLED_PAGE + (_y >> 3) + p);
+        sendOneCommand(OLED_COLUMN_LOWER_BITS + ((_x + OLED_OFFSET) & 0x0F));
+        sendOneCommand(OLED_COLUMN_HIGHER_BITS + ((_x + OLED_OFFSET) >> 4));
 
-    Wire.write(OLED_DATA_MODE);
-    for (uint8_t i = 0; i < 5; i++)
-        Wire.write(pgm_read_byte(&_charMap[character - 32][i]));
-    Wire.endTransmission();
+        Wire.write(OLED_DATA_MODE);
+        for (uint8_t c = 0; c < 5; c++)
+        {
+            if (_textScale == 1)
+            {
+                Wire.write(pgm_read_byte(&_charMap[character - 32][c]));
+            }
+            else
+            {
+                uint8_t column = pgm_read_byte(&_charMap[character - 32][c]);
+                uint32_t scaledColumn = 0;
 
-    _x += 6;
+                for (uint8_t i = 0, count = 0; i < 8; i++)
+                    for (uint8_t j = 0; j < _textScale; j++, count++)
+                        bitWrite(scaledColumn, count, bitRead(column, i));
+
+                for (uint8_t s = 0; s < _textScale; s++)
+                {
+                    Wire.write(0xFF & (scaledColumn >> (_textScale - p - 1) * 8));
+                }
+            }
+        }
+
+        Wire.endTransmission();
+    }
+    _x += 6 * _textScale;
 }
 
 void Oled::setCursor(uint8_t x, uint8_t y)

@@ -11,10 +11,10 @@ void setup() {
 
 void loop() {
   delay(2000);
-  oled.drawLine(10, 10, 40, 40);
-  delay(2000);
+  oled.drawLine(10, 30, 110, 30);
   oled.drawLineH(32, 10, 110);
   delay(2000);
+  oled.drawLine(62, 20, 62, 50);
   oled.drawLineV(64, 20, 50);
   delay(2000);
   oled.clear();
