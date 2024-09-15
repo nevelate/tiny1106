@@ -66,6 +66,7 @@ private:
     int _address;
     uint8_t _textScale = 1, _x, _y;
     void sendOneCommand(int8_t command);
+    uint32_t scaleByte(uint8_t data);
 };
 
 #endif
