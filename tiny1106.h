@@ -47,6 +47,8 @@ public:
     void clear();
     void clear(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1);
 
+    void fill(uint8_t fill);
+
     void drawPoint(uint8_t x, uint8_t y);
 
     void drawLine(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1);

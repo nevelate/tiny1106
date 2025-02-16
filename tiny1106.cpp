@@ -115,6 +115,24 @@ void Oled::clear(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1)
     }
 }
 
+void Oled::fill(uint8_t fill){
+    for (uint8_t p = 0; p < 8; p++)
+    {
+        Wire.beginTransmission(_address);
+        sendOneCommand(OLED_PAGE + p);
+        Wire.endTransmission();
+
+        for (uint8_t i = 0; i < 5; i++)
+        {
+            Wire.beginTransmission(_address);
+            Wire.write(OLED_DATA_MODE);
+            for (uint8_t j = 0; j < 27; j++)
+                Wire.write(fill != 0 ? 0xFF : 0);
+            Wire.endTransmission();
+        }
+    }
+}
+
 void Oled::drawPoint(uint8_t x, uint8_t y)
 {
     Wire.beginTransmission(_address);
@@ -312,47 +330,6 @@ void Oled::print(char text[])
     _x += length * 6;
 }
 
-void Oled::printChar(char character)
-{
-    uint8_t h = _y & 0x07;
-    uint8_t pageCount = (_y & 0x07) == 0 ? _textScale : _textScale + 1;
-
-    for (uint8_t p = 0; p < pageCount; p++)
-    {
-        Wire.beginTransmission(_address);
-        sendOneCommand(OLED_PAGE + (_y >> 3) + p);
-        sendOneCommand(OLED_COLUMN_LOWER_BITS + ((_x + OLED_OFFSET) & 0x0F));
-        sendOneCommand(OLED_COLUMN_HIGHER_BITS + ((_x + OLED_OFFSET) >> 4));
-        sendOneCommand(OLED_READ_MODIFY_WRITE);
-        Wire.write(OLED_ONE_DATA_MODE);
-        Wire.endTransmission();
-
-        for (uint8_t i = 0; i < 6; i++)
-        {
-            Wire.requestFrom(_address, 2);
-            Wire.read();
-            int data = Wire.read();
-            Wire.beginTransmission(_address);
-            Wire.write(OLED_ONE_DATA_MODE);
-
-            if (i == 5)
-            {
-                Wire.write(data);
-                sendOneCommand(OLED_END);
-                Wire.endTransmission();
-                continue;
-            }
-
-            int column = pgm_read_byte(&_charMap[character - 32][i]);
-            Wire.write((column << h) >> (p << 3) | data);
-
-            Wire.endTransmission();
-        }
-    }
-
-    _x += 6;
-}
-
 void Oled::printFast(char text[])
 {
     uint8_t length = strlen(text);
@@ -403,39 +380,6 @@ void Oled::printFast(char text[])
     }
 
     _x += 6 * length * _textScale;
-}
-
-void Oled::printCharFast(char character)
-{
-    for (uint8_t p = 0; p < _textScale; p++)
-    {
-        Wire.beginTransmission(_address);
-        sendOneCommand(OLED_PAGE + (_y >> 3) + p);
-        sendOneCommand(OLED_COLUMN_LOWER_BITS + ((_x + OLED_OFFSET) & 0x0F));
-        sendOneCommand(OLED_COLUMN_HIGHER_BITS + ((_x + OLED_OFFSET) >> 4));
-
-        Wire.write(OLED_DATA_MODE);
-        for (uint8_t c = 0; c < 5; c++)
-        {
-            if (_textScale == 1)
-            {
-                Wire.write(pgm_read_byte(&_charMap[character - 32][c]));
-            }
-            else
-            {
-                uint8_t column = pgm_read_byte(&_charMap[character - 32][c]);
-                uint32_t scaledColumn = scaleByte(column);
-
-                for (uint8_t s = 0; s < _textScale; s++)
-                {
-                    Wire.write(0xFF & (scaledColumn >> (p * 8)));
-                }
-            }
-        }
-
-        Wire.endTransmission();
-    }
-    _x += 6 * _textScale;
 }
 
 void Oled::setCursor(uint8_t x, uint8_t y)
