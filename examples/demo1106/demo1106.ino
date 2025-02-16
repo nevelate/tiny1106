@@ -10,13 +10,69 @@ void setup() {
 }
 
 void loop() {
+  printFastTest();
+
+  printTest();
+
+  drawLineTest();
   delay(2000);
-  oled.drawLine(10, 30, 110, 30);
-  oled.drawLineH(32, 10, 110);
+
+  drawLineVTest();
   delay(2000);
-  oled.drawLine(62, 20, 62, 50);
-  oled.drawLineV(64, 20, 50);
+
+  drawLineHTest();
   delay(2000);
+
+  drawPointTest();
+  delay(2000);
+}
+
+void printFastTest(){
+  for(int i = 1; i <= 4; i++){
+    oled.clear();
+    oled.setTextScale(i);
+    oled.printFast("Hi!");
+    delay(1000);
+  }
+}
+
+void printTest(){
+  oled.setCursor(20, 20);
+  for(int i = 1; i <= 4; i++){
+    oled.clear();
+    oled.setTextScale(i);
+    oled.printFast("Hey");
+    delay(1000);
+  }
+}
+
+void drawLineTest(){
   oled.clear();
-  oled.print("Hello, World!");
+  for(int i = 0; i < 10; i++){
+    oled.drawLine(0, 0, 127, i * 6);
+  }
+  for(int i = 20; i >= 0; i--){
+    oled.drawLine(0, 0, i * 6, 63);
+  }
+}
+
+void drawLineVTest(){
+  oled.clear();
+  for(int i = 0; i < 32; i++){
+    oled.drawLineV(i * 4, 0, 32 + i);
+  }
+}
+
+void drawLineHTest(){
+  oled.clear();
+  for(int i = 0; i < 16; i++){
+    oled.drawLineH(i * 4, 0, 64 + i * 4);
+  }
+}
+
+void drawPointTest(){
+  oled.clear();
+  for(int i = 0; i < 100; i++){
+    oled.drawPoint(random(128), random(64));
+  }
 }

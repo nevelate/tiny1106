@@ -13,7 +13,10 @@ void Oled::init()
     Wire.begin();
     clear();
     Wire.beginTransmission(_address);
-    sendOneCommand(OLED_DISPLAY_ON);
+    Wire.write(OLED_COMMAND_MODE);
+    Wire.write(0x40);
+    Wire.write(OLED_NORMAL_V);
+    Wire.write(OLED_NORMAL_H);
     Wire.endTransmission();
 }
 
@@ -136,11 +139,13 @@ void Oled::fill(uint8_t fill){
 void Oled::drawPoint(uint8_t x, uint8_t y)
 {
     Wire.beginTransmission(_address);
+    Wire.write(OLED_COMMAND_MODE);
+    Wire.write(OLED_PAGE + (y >> 3));
+    Wire.write(OLED_COLUMN_LOWER_BITS + ((x + OLED_OFFSET) & 0x0F));
+    Wire.write(OLED_COLUMN_HIGHER_BITS + ((x + OLED_OFFSET) >> 4));
+    Wire.endTransmission();
 
-    sendOneCommand(OLED_PAGE + (y >> 3));
-    sendOneCommand(OLED_COLUMN_LOWER_BITS + ((x + OLED_OFFSET) & 0x0F));
-    sendOneCommand(OLED_COLUMN_HIGHER_BITS + ((x + OLED_OFFSET) >> 4));
-
+    Wire.beginTransmission(_address);
     sendOneCommand(OLED_READ_MODIFY_WRITE);
     Wire.write(OLED_ONE_DATA_MODE);
     Wire.endTransmission();
@@ -198,9 +203,10 @@ void Oled::drawLineV(uint8_t x, uint8_t y0, uint8_t y1)
     for (uint8_t i = (start >> 3); i <= (end >> 3); i++)
     {
         Wire.beginTransmission(_address);
-        sendOneCommand(OLED_PAGE + i);
-        sendOneCommand(OLED_COLUMN_LOWER_BITS + ((x + OLED_OFFSET) & 0x0F));
-        sendOneCommand(OLED_COLUMN_HIGHER_BITS + ((x + OLED_OFFSET) >> 4));
+        Wire.write(OLED_COMMAND_MODE);
+        Wire.write(OLED_PAGE + i);
+        Wire.write(OLED_COLUMN_LOWER_BITS + ((x + OLED_OFFSET) & 0x0F));
+        Wire.write(OLED_COLUMN_HIGHER_BITS + ((x + OLED_OFFSET) >> 4));
         Wire.endTransmission();
 
         if (i == (start >> 3))
@@ -254,11 +260,14 @@ void Oled::drawLineH(uint8_t y, uint8_t x0, uint8_t x1)
     uint8_t start = min(x0, x1);
     uint8_t end = max(x0, x1);
 
-    uint8_t x = start;
     Wire.beginTransmission(_address);
-    sendOneCommand(OLED_PAGE + (y >> 3));
-    sendOneCommand(OLED_COLUMN_LOWER_BITS + ((start + OLED_OFFSET) & 0x0F));
-    sendOneCommand(OLED_COLUMN_HIGHER_BITS + ((start + OLED_OFFSET) >> 4));
+    Wire.write(OLED_COMMAND_MODE);
+    Wire.write(OLED_PAGE + (y >> 3));
+    Wire.write(OLED_COLUMN_LOWER_BITS + ((start + OLED_OFFSET) & 0x0F));
+    Wire.write(OLED_COLUMN_HIGHER_BITS + ((start + OLED_OFFSET) >> 4));
+    Wire.endTransmission();
+
+    Wire.beginTransmission(_address);
     sendOneCommand(OLED_READ_MODIFY_WRITE);
     Wire.write(OLED_ONE_DATA_MODE);
     Wire.endTransmission();
@@ -286,8 +295,9 @@ void Oled::print(char text[])
     uint8_t pageCount = (_y & 0x07) == 0 ? _textScale : _textScale + 1;
 
     Wire.beginTransmission(_address);
-    sendOneCommand(OLED_COLUMN_LOWER_BITS + ((_x + OLED_OFFSET) & 0x0F));
-    sendOneCommand(OLED_COLUMN_HIGHER_BITS + ((_x + OLED_OFFSET) >> 4));
+    Wire.write(OLED_COMMAND_MODE);
+    Wire.write(OLED_COLUMN_LOWER_BITS + ((_x + OLED_OFFSET) & 0x0F));
+    Wire.write(OLED_COLUMN_HIGHER_BITS + ((_x + OLED_OFFSET) >> 4));
     Wire.endTransmission();
 
     for (uint8_t p = 0; p < pageCount; p++)
@@ -338,9 +348,10 @@ void Oled::printFast(char text[])
     for (uint8_t p = 0; p < _textScale; p++)
     {
         Wire.beginTransmission(_address);
-        sendOneCommand(OLED_PAGE + (_y >> 3) + p);
-        sendOneCommand(OLED_COLUMN_LOWER_BITS + ((_x + OLED_OFFSET) & 0x0F));
-        sendOneCommand(OLED_COLUMN_HIGHER_BITS + ((_x + OLED_OFFSET) >> 4));
+        Wire.write(OLED_COMMAND_MODE);
+        Wire.write(OLED_PAGE + (_y >> 3) + p);
+        Wire.write(OLED_COLUMN_LOWER_BITS + ((_x + OLED_OFFSET) & 0x0F));
+        Wire.write(OLED_COLUMN_HIGHER_BITS + ((_x + OLED_OFFSET) >> 4));
         Wire.endTransmission();
 
         for (uint8_t i = 0; i <= length / (5 / _textScale); i++)
@@ -391,6 +402,13 @@ void Oled::setCursor(uint8_t x, uint8_t y)
 void Oled::setTextScale(uint8_t scale)
 {
     _textScale = constrain(scale, 0, 4);
+}
+
+void Oled::sendCommand(int8_t command)
+{
+    Wire.beginTransmission(_address);
+    sendOneCommand(command);
+    Wire.endTransmission();
 }
 
 void Oled::sendOneCommand(int8_t command)

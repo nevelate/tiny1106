@@ -30,6 +30,11 @@
 #define OLED_NORMAL 0xA6
 #define OLED_INVERTED 0xA7
 
+#define OLED_NORMAL_V 0xC8
+#define OLED_FLIP_V 0xC0
+#define OLED_NORMAL_H 0xA1
+#define OLED_FLIP_H 0xA0
+
 #define OLED_READ_MODIFY_WRITE 0xE0
 #define OLED_END 0xEE
 
@@ -56,14 +61,14 @@ public:
     void drawLineH(uint8_t y, uint8_t x0, uint8_t x1);
 
     void print(char text[]);
-    void printChar(char character);
 
     void printFast(char text[]);
-    void printCharFast(char character);
 
     void setCursor(uint8_t x, uint8_t y);
     void setTextScale(uint8_t scale);
 
+    void sendCommand(int8_t command);
+    
 private:
     int _address;
     uint8_t _textScale = 1, _x, _y;
