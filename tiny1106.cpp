@@ -14,9 +14,10 @@ void Oled::init()
     clear();
     Wire.beginTransmission(_address);
     Wire.write(OLED_COMMAND_MODE);
-    Wire.write(0x40);
+    Wire.write(0x40); // set display start line to 0
     Wire.write(OLED_NORMAL_V);
     Wire.write(OLED_NORMAL_H);
+    Wire.write(OLED_DISPLAY_ON);
     Wire.endTransmission();
 }
 
@@ -200,7 +201,10 @@ void Oled::drawLineV(uint8_t x, uint8_t y0, uint8_t y1)
     uint8_t start = min(y0, y1);
     uint8_t end = max(y0, y1);
 
-    for (uint8_t i = (start >> 3); i <= (end >> 3); i++)
+    uint8_t startPage = start >> 3;
+    uint8_t endPage = end >> 3;
+
+    for (uint8_t i = startPage; i <= endPage; i++)
     {
         Wire.beginTransmission(_address);
         Wire.write(OLED_COMMAND_MODE);
@@ -209,7 +213,7 @@ void Oled::drawLineV(uint8_t x, uint8_t y0, uint8_t y1)
         Wire.write(OLED_COLUMN_HIGHER_BITS + ((x + OLED_OFFSET) >> 4));
         Wire.endTransmission();
 
-        if (i == (start >> 3))
+        if (i == startPage)
         {
             Wire.beginTransmission(_address);
             sendOneCommand(OLED_READ_MODIFY_WRITE);
@@ -221,13 +225,13 @@ void Oled::drawLineV(uint8_t x, uint8_t y0, uint8_t y1)
             int data = Wire.read();
             Wire.beginTransmission(_address);
             Wire.write(OLED_ONE_DATA_MODE);
-            Wire.write((0xFF >> (start & 0x07)) | data);
+            Wire.write((0xFF << (start & 0x07)) | data);
 
             sendOneCommand(OLED_END);
 
             Wire.endTransmission();
         }
-        else if (i == (end >> 3))
+        else if (i == endPage)
         {
             Wire.beginTransmission(_address);
             sendOneCommand(OLED_READ_MODIFY_WRITE);
@@ -239,7 +243,7 @@ void Oled::drawLineV(uint8_t x, uint8_t y0, uint8_t y1)
             int data = Wire.read();
             Wire.beginTransmission(_address);
             Wire.write(OLED_ONE_DATA_MODE);
-            Wire.write(~(0xFF >> (end & 0x07)) | data);
+            Wire.write((0xFF >> (7 - (end & 0x07))) | data);
 
             sendOneCommand(OLED_END);
 
@@ -401,7 +405,7 @@ void Oled::setCursor(uint8_t x, uint8_t y)
 
 void Oled::setTextScale(uint8_t scale)
 {
-    _textScale = constrain(scale, 0, 4);
+    _textScale = constrain(scale, 1, 4);
 }
 
 void Oled::sendCommand(int8_t command)
