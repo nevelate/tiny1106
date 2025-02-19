@@ -14,9 +14,14 @@ void Oled::init()
     clear();
     Wire.beginTransmission(_address);
     Wire.write(OLED_COMMAND_MODE);
+    Wire.write(OLED_DISPLAY_OFF);
     Wire.write(0x40); // set display start line to 0
+    Wire.write(OLED_DISPLAY_OFFSET_MODE);
+    Wire.write(0x00); // set display offset to 0
     Wire.write(OLED_NORMAL_V);
     Wire.write(OLED_NORMAL_H);
+    Wire.write(OLED_CONTRAST);
+    Wire.write(0xFF);
     Wire.write(OLED_DISPLAY_ON);
     Wire.endTransmission();
 }
@@ -61,61 +66,98 @@ void Oled::clear(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1)
     uint8_t startY = min(y0, y1);
     uint8_t endY = max(y0, y1);
 
-    for (uint8_t i = (startY >> 3); i <= (endY >> 3); i++)
+    uint8_t startPage = startY >> 3;
+    uint8_t endPage = endY >> 3;
+
+    for (uint8_t i = startPage; i <= endPage; i++)
     {
-        uint8_t x = startX;
         Wire.beginTransmission(_address);
-        sendOneCommand(OLED_PAGE + i);
+        Wire.write(OLED_COMMAND_MODE);
+        Wire.write(OLED_PAGE + i);
+        Wire.write(OLED_COLUMN_LOWER_BITS + ((startX + OLED_OFFSET) & 0x0F));
+        Wire.write(OLED_COLUMN_HIGHER_BITS + ((startX + OLED_OFFSET) >> 4));
         Wire.endTransmission();
 
-        for (uint8_t j = 0; j < 8; j++)
+        if(startPage == endPage)
         {
             Wire.beginTransmission(_address);
-            Wire.write(OLED_COLUMN_LOWER_BITS + ((x + OLED_OFFSET) & 0x0F));
-            Wire.write(OLED_COLUMN_HIGHER_BITS + ((x + OLED_OFFSET) >> 4));
+            sendOneCommand(OLED_READ_MODIFY_WRITE);
+            Wire.write(OLED_ONE_DATA_MODE);
             Wire.endTransmission();
-
-            for (uint8_t k = 0; k < 17; k++)
+            for (uint8_t i = startX; i <= endX; i++)
             {
-                if (i == (startY >> 3))
-                {
-                    Wire.requestFrom(_address, 1);
-                    Wire.read();
-                    int data = Wire.read();
-                    Wire.beginTransmission(_address);
-                    Wire.write(OLED_ONE_DATA_MODE);
-                    Wire.write((0xFF >> (x & 0x07)) | data);
-
-                    sendOneCommand(OLED_END);
-
-                    Wire.endTransmission();
-                }
-                else if (i == (endY >> 3))
-                {
-                    Wire.requestFrom(_address, 1);
-                    Wire.read();
-                    int data = Wire.read();
-                    Wire.beginTransmission(_address);
-                    Wire.write(OLED_ONE_DATA_MODE);
-                    Wire.write(~(0xFF >> (x & 0x07)) | data);
-
-                    sendOneCommand(OLED_END);
-
-                    Wire.endTransmission();
-                }
-                else
-                {
-                    Wire.beginTransmission(_address);
-                    Wire.write(OLED_ONE_DATA_MODE);
-                    Wire.write(0);
-                    Wire.endTransmission();
-                }
-
-                if (x == endX)
-                    break;
-                x++;
+                Wire.requestFrom(_address, 2);
+                Wire.read();
+                int data = Wire.read();
+                Wire.beginTransmission(_address);
+                Wire.write(OLED_ONE_DATA_MODE);
+                Wire.write(~(0xFF >> (7 - endY + startY) << (startY & 0x07)) & data);
+                Wire.endTransmission();
             }
+            Wire.beginTransmission(_address);
+            sendOneCommand(OLED_END);
+            Wire.endTransmission();
         }
+        else
+        {
+            if (i == startPage)
+            {
+                Wire.beginTransmission(_address);
+                sendOneCommand(OLED_READ_MODIFY_WRITE);
+                Wire.write(OLED_ONE_DATA_MODE);
+                Wire.endTransmission();
+                for (uint8_t i = startX; i <= endX; i++)
+                {
+                    Wire.requestFrom(_address, 2);
+                    Wire.read();
+                    int data = Wire.read();
+                    Wire.beginTransmission(_address);
+                    Wire.write(OLED_ONE_DATA_MODE);
+                    Wire.write(~(0xFF << (startY & 0x07)) & data);
+                    Wire.endTransmission();
+                }            
+                Wire.beginTransmission(_address);
+                sendOneCommand(OLED_END);
+                Wire.endTransmission();        
+            }
+            else if (i == endPage)
+            {
+                Wire.beginTransmission(_address);
+                sendOneCommand(OLED_READ_MODIFY_WRITE);
+                Wire.write(OLED_ONE_DATA_MODE);
+                Wire.endTransmission();
+                for (uint8_t i = startX; i <= endX; i++)
+                {
+                    Wire.requestFrom(_address, 2);
+                    Wire.read();
+                    int data = Wire.read();
+                    Wire.beginTransmission(_address);
+                    Wire.write(OLED_ONE_DATA_MODE);
+                    Wire.write(~(0xFF >> (7 - (endY & 0x07))) & data);
+                    Wire.endTransmission();
+                }
+                Wire.beginTransmission(_address);
+                sendOneCommand(OLED_END);
+                Wire.endTransmission();
+            }
+            else
+            {
+                uint8_t x = startX;
+                for (uint8_t i = 0; i <= (endX - startX) / 27; i++)
+                {
+                    Wire.beginTransmission(_address);
+                    Wire.write(OLED_DATA_MODE);
+                    for (uint8_t j = 0; j < 27; j++)
+                    {
+                        Wire.write(0);
+                        x++;
+                        if(x > endX) break;
+                    }
+                    Wire.endTransmission();
+                    if(x > endX) break;
+                }
+            }
+        }    
     }
 }
 
@@ -131,7 +173,7 @@ void Oled::fill(uint8_t fill){
             Wire.beginTransmission(_address);
             Wire.write(OLED_DATA_MODE);
             for (uint8_t j = 0; j < 27; j++)
-                Wire.write(fill != 0 ? 0xFF : 0);
+                Wire.write(fill ? 0xFF : 0);
             Wire.endTransmission();
         }
     }
@@ -213,7 +255,7 @@ void Oled::drawLineV(uint8_t x, uint8_t y0, uint8_t y1)
         Wire.write(OLED_COLUMN_HIGHER_BITS + ((x + OLED_OFFSET) >> 4));
         Wire.endTransmission();
 
-        if (i == startPage)
+        if(startPage == endPage)
         {
             Wire.beginTransmission(_address);
             sendOneCommand(OLED_READ_MODIFY_WRITE);
@@ -225,25 +267,7 @@ void Oled::drawLineV(uint8_t x, uint8_t y0, uint8_t y1)
             int data = Wire.read();
             Wire.beginTransmission(_address);
             Wire.write(OLED_ONE_DATA_MODE);
-            Wire.write((0xFF << (start & 0x07)) | data);
-
-            sendOneCommand(OLED_END);
-
-            Wire.endTransmission();
-        }
-        else if (i == endPage)
-        {
-            Wire.beginTransmission(_address);
-            sendOneCommand(OLED_READ_MODIFY_WRITE);
-            Wire.write(OLED_ONE_DATA_MODE);
-            Wire.endTransmission();
-
-            Wire.requestFrom(_address, 2);
-            Wire.read();
-            int data = Wire.read();
-            Wire.beginTransmission(_address);
-            Wire.write(OLED_ONE_DATA_MODE);
-            Wire.write((0xFF >> (7 - (end & 0x07))) | data);
+            Wire.write((0xFF >> (7 - end + start) << (start & 0x07)) | data);
 
             sendOneCommand(OLED_END);
 
@@ -251,10 +275,49 @@ void Oled::drawLineV(uint8_t x, uint8_t y0, uint8_t y1)
         }
         else
         {
-            Wire.beginTransmission(_address);
-            Wire.write(OLED_ONE_DATA_MODE);
-            Wire.write(0xFF);
-            Wire.endTransmission();
+            if (i == startPage)
+            {
+                Wire.beginTransmission(_address);
+                sendOneCommand(OLED_READ_MODIFY_WRITE);
+                Wire.write(OLED_ONE_DATA_MODE);
+                Wire.endTransmission();
+
+                Wire.requestFrom(_address, 2);
+                Wire.read();
+                int data = Wire.read();
+                Wire.beginTransmission(_address);
+                Wire.write(OLED_ONE_DATA_MODE);
+                Wire.write((0xFF << (start & 0x07)) | data);
+
+                sendOneCommand(OLED_END);
+
+                Wire.endTransmission();
+            }
+            else if (i == endPage)
+            {
+                Wire.beginTransmission(_address);
+                sendOneCommand(OLED_READ_MODIFY_WRITE);
+                Wire.write(OLED_ONE_DATA_MODE);
+                Wire.endTransmission();
+
+                Wire.requestFrom(_address, 2);
+                Wire.read();
+                int data = Wire.read();
+                Wire.beginTransmission(_address);
+                Wire.write(OLED_ONE_DATA_MODE);
+                Wire.write((0xFF >> (7 - (end & 0x07))) | data);
+
+                sendOneCommand(OLED_END);
+
+                Wire.endTransmission();
+            }
+            else
+            {
+                Wire.beginTransmission(_address);
+                Wire.write(OLED_ONE_DATA_MODE);
+                Wire.write(0xFF);
+                Wire.endTransmission();
+            }
         }
     }
 }
